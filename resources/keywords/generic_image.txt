@@ -1,0 +1,20 @@
+# Generic keyword list searched against the full disk image via the Plaso
+# psort output and the registry RegRipper outputs.
+# One keyword per line. Populate with per-engagement intel.
+mimikatz
+cobaltstrike
+rubeus
+sharphound
+lsass.dmp
+ntds.dit
+DisableAntiSpyware
+DisableRealtimeMonitoring
+stopservice
+wbadmin delete
+vssadmin delete
+bcdedit /set
+wmic shadowcopy delete
+Invoke-Mimikatz
+IEX (New-Object Net.WebClient)
+FromBase64String
+EncodedCommand

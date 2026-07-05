@@ -1,0 +1,31 @@
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Workspace config (case-specific paths — do not commit)
+.hecatrace.env
+.env
+
+# Evidence, results and logs (mounted as Docker volumes — never commit)
+evidences/
+output/
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+*~
+.idea/
+.vscode/

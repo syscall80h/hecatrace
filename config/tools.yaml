@@ -1,0 +1,262 @@
+# =============================================================================
+# Hecatrace - Tool registry
+# =============================================================================
+# Each entry describes a tool available in the container.
+#
+# Fields:
+#   command   : command name (resolved via PATH) or absolute path
+#   type      : binary | python | perl
+#   optional  : if true, the tool's absence does not block the pipeline
+#   cwd       : working directory (RegRipper only)
+#   description : short description for the logs
+#
+# To add a tool: add an entry here.
+# No Python code changes are required for tools invoked via run_cmd().
+# =============================================================================
+
+tools:
+
+  # ---------------------------------------------------------------------------
+  # Sleuth Kit (installed via apt)
+  # ---------------------------------------------------------------------------
+  fls:
+    command:     fls
+    type:        binary
+    optional:    false
+    description: "Sleuth Kit - lists the files of a disk image"
+
+  mactime:
+    command:     mactime
+    type:        binary
+    optional:    false
+    description: "Sleuth Kit - timeline from a bodyfile"
+
+  mmls:
+    command:     mmls
+    type:        binary
+    optional:    true
+    description: "Sleuth Kit - partition table listing (auto-detects the NTFS offset for raw/E01/VHD/VHDX images)"
+
+  icat:
+    command:     icat
+    type:        binary
+    optional:    true
+    description: "Sleuth Kit - file extraction by inode"
+
+  blkcat:
+    command:     blkcat
+    type:        binary
+    optional:    true
+    description: "Sleuth Kit - data block extraction"
+
+  img_stat:
+    command:     img_stat
+    type:        binary
+    optional:    true
+    description: "Sleuth Kit - disk image information"
+
+  # ---------------------------------------------------------------------------
+  # Plaso (installed via pip)
+  # ---------------------------------------------------------------------------
+  log2timeline:
+    command:     log2timeline
+    type:        binary
+    optional:    false
+    description: "Plaso - timeline creation (kitchen sink)"
+
+  psort:
+    command:     psort
+    type:        binary
+    optional:    false
+    description: "Plaso - timeline sorting and export"
+
+  # ---------------------------------------------------------------------------
+  # Volatility3 (installed via pip - 'vol' command)
+  # ---------------------------------------------------------------------------
+  volatility3:
+    command:     vol
+    type:        python
+    optional:    true
+    description: "Volatility3 - memory analysis"
+
+  # ---------------------------------------------------------------------------
+  # RegRipper (cloned from GitHub)
+  # ---------------------------------------------------------------------------
+  regripper:
+    command:     /opt/hecatrace/tools/RegRipper4.0/rip.pl
+    type:        perl
+    optional:    false
+    cwd:         /opt/hecatrace/tools/RegRipper4.0
+    description: "RegRipper - Windows registry hive extraction"
+
+  # ---------------------------------------------------------------------------
+  # Cloned Python tools
+  # ---------------------------------------------------------------------------
+  analyze_mft:
+    command:     /opt/hecatrace/tools/analyzeMFT/analyzeMFT.py
+    type:        python
+    optional:    false
+    description: "analyzeMFT - NTFS $MFT parsing"
+
+  kstrike:
+    command:     /opt/hecatrace/tools/KStrike/KStrike.py
+    type:        python
+    optional:    false
+    description: "KStrike - UAL (User Access Logging) database parsing"
+
+  indx_ripper:
+    command:     /opt/hecatrace/tools/INDXRipper/INDXRipper.py
+    type:        python
+    optional:    false
+    description: "INDXRipper - $I30 / INDX entry extraction"
+
+  usn_parser:
+    command:     /opt/hecatrace/tools/USN-Journal-Parser/usnparser/usn.py
+    type:        python
+    optional:    false
+    description: "USN-Journal-Parser - USN journal parsing ($UsnJrnl)"
+
+  # ---------------------------------------------------------------------------
+  # Hayabusa (Rust binary, added to PATH via Dockerfile)
+  # ---------------------------------------------------------------------------
+  hayabusa:
+    command:     /opt/hecatrace/tools/hayabusa/hayabusa
+    type:        binary
+    optional:    false
+    description: "Hayabusa - EVTX timeline and Sigma detection"
+
+  # ---------------------------------------------------------------------------
+  # Chainsaw (Rust binary, added to PATH via Dockerfile)
+  # ---------------------------------------------------------------------------
+  chainsaw:
+    command:     /opt/hecatrace/tools/chainsaw/chainsaw
+    type:        binary
+    optional:    false
+    description: "Chainsaw - Sigma hunting over EVTX"
+
+  # Resources associated with Chainsaw (directories, not executables)
+  chainsaw_rules:
+    command:     /opt/hecatrace/tools/chainsaw/rules
+    type:        directory
+    optional:    false
+    description: "Bundled Chainsaw rules"
+
+  chainsaw_mappings:
+    command:     /opt/hecatrace/tools/chainsaw/mappings/sigma-event-logs-all.yml
+    type:        file
+    optional:    true
+    description: "Chainsaw mapping file for Sigma rules"
+
+  sigma_rules:
+    command:     /opt/hecatrace/tools/sigma/rules/windows
+    type:        directory
+    optional:    true
+    description: "Sigma rules (Windows) - SigmaHQ repository"
+
+  # ---------------------------------------------------------------------------
+  # Malware / reverse engineering tools
+  # ---------------------------------------------------------------------------
+  capa:
+    command:     /opt/hecatrace/tools/capa/capa
+    type:        binary
+    optional:    true
+    description: "capa - malware capability detection (Mandiant)"
+
+  floss:
+    command:     /opt/hecatrace/tools/floss/floss
+    type:        binary
+    optional:    true
+    description: "FLOSS - obfuscated string extraction (Mandiant)"
+
+  yara:
+    command:     yara
+    type:        binary
+    optional:    true
+    description: "YARA - malware pattern matching"
+
+  # ---------------------------------------------------------------------------
+  # Document analysis
+  # ---------------------------------------------------------------------------
+  pdfid:
+    command:     /opt/hecatrace/tools/didier-stevens/pdfid.py
+    type:        python
+    optional:    true
+    description: "pdfid - quick PDF file analysis (Didier Stevens)"
+
+  pdf_parser:
+    command:     /opt/hecatrace/tools/didier-stevens/pdf-parser.py
+    type:        python
+    optional:    true
+    description: "pdf-parser - in-depth PDF analysis (Didier Stevens)"
+
+  oledump:
+    command:     /opt/hecatrace/tools/didier-stevens/oledump.py
+    type:        python
+    optional:    true
+    description: "oledump - OLE/Office file analysis (Didier Stevens)"
+
+  # ---------------------------------------------------------------------------
+  # System tools (installed via apt - always on PATH)
+  # ---------------------------------------------------------------------------
+  strings:
+    command:     strings
+    type:        binary
+    optional:    false
+    description: "GNU strings - ASCII and UTF-16LE string extraction"
+
+  grep:
+    command:     grep
+    type:        binary
+    optional:    false
+    description: "grep - keyword search"
+
+  jq:
+    command:     jq
+    type:        binary
+    optional:    false
+    description: "jq - JSON processing"
+
+  fd:
+    command:     fdfind
+    type:        binary
+    optional:    true
+    description: "fd-find - fast file search (apt package 'fd-find' installs the 'fdfind' binary)"
+
+  exiftool:
+    command:     exiftool
+    type:        binary
+    optional:    true
+    description: "ExifTool - metadata extraction"
+
+  bulk_extractor:
+    command:     bulk_extractor
+    type:        binary
+    optional:    true
+    description: "Bulk Extractor - artifact extraction from images (built from source)"
+
+  foremost:
+    command:     foremost
+    type:        binary
+    optional:    true
+    description: "Foremost - file carving"
+
+  binwalk:
+    command:     binwalk
+    type:        binary
+    optional:    true
+    description: "Binwalk - firmware/binary analysis and extraction"
+
+  ssdeep:
+    command:     ssdeep
+    type:        binary
+    optional:    true
+    description: "ssdeep - fuzzy hashing"
+
+  # ---------------------------------------------------------------------------
+  # Loki (IOC scanner)
+  # ---------------------------------------------------------------------------
+  loki:
+    command:     /opt/hecatrace/tools/loki/loki.py
+    type:        python
+    optional:    true
+    description: "Loki - IOC scanner (Neo23x0)"

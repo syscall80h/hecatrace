@@ -1,0 +1,74 @@
+# =============================================================================
+# Hecatrace — Docker Compose
+# =============================================================================
+# Recommended usage: use the 'hecatrace' wrapper (simpler).
+# This file is useful for:
+#   - advanced configurations (resource limits, networks)
+#   - CI/CD integration
+#   - deployment on a dedicated server
+#
+# Prerequisite: .hecatrace.env file in the current directory
+#   (created by 'hecatrace init' or copied from .hecatrace.env.example)
+#
+# Examples:
+#   docker compose run --rm dfir -v -e
+#   docker compose run --rm dfir shell
+#   docker compose run --rm dfir exec volatility3 --help
+# =============================================================================
+
+services:
+
+  dfir:
+    image: ${HECATRACE_IMAGE:-hecatrace:latest}
+
+    # Loading the workspace configuration
+    env_file:
+      - path: .hecatrace.env
+        required: false
+
+    volumes:
+      # Digital evidence — read-only
+      - type: bind
+        source: ${HECATRACE_EVIDENCE:-/evidences}
+        target: /evidences
+        read_only: true
+
+      # Results — read/write
+      - type: bind
+        source: ${HECATRACE_OUTPUT:-/output}
+        target: /output
+
+      # Logs — read/write
+      - type: bind
+        source: ${HECATRACE_LOGS:-/tmp/hecatrace_logs}
+        target: /logs
+
+    # Required for interactive commands (hecatrace shell)
+    stdin_open: true
+    tty: true
+
+    # Clean signal handling (Ctrl+C forwarded to the child process)
+    init: true
+
+    # ---------------------------------------------------------------------------
+    # Resource limits — uncomment and adapt to the server
+    # ---------------------------------------------------------------------------
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '8'
+    #       memory: 32G
+    #     reservations:
+    #       cpus: '2'
+    #       memory: 4G
+
+    # ---------------------------------------------------------------------------
+    # Extra capabilities for certain advanced forensics operations
+    # (raw memory access, raw disk, ptrace)
+    # Uncomment only if needed.
+    # ---------------------------------------------------------------------------
+    # cap_add:
+    #   - SYS_PTRACE
+    #   - SYS_RAWIO
+    # security_opt:
+    #   - seccomp:unconfined

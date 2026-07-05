@@ -1,0 +1,371 @@
+#!/usr/bin/env bash
+# =============================================================================
+# hecatrace — CLI wrapper for the Hecatrace DFIR platform
+# =============================================================================
+#
+# Installation (one time only):
+#   chmod +x /path/to/project/hecatrace
+#   ln -sf /path/to/project/hecatrace ~/bin/hecatrace
+#   # or: sudo ln -sf /path/to/project/hecatrace /usr/local/bin/hecatrace
+#
+# Typical workflow:
+#   hecatrace build
+#   cd /srv/investigations/case_001
+#   hecatrace init --evidence /srv/evidences/case_001 --output /srv/results/case_001
+#   hecatrace shell         # → interactive shell with all tools
+#   hecatrace run -v -e     # → full pipeline
+#
+# =============================================================================
+set -euo pipefail
+
+# ---------------------------------------------------------------------------
+# Project location (including symlink resolution)
+# ---------------------------------------------------------------------------
+SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+
+# ---------------------------------------------------------------------------
+# Default values (overridden by the config file)
+# ---------------------------------------------------------------------------
+HECATRACE_IMAGE="hecatrace:latest"
+HECATRACE_EVIDENCE=""
+HECATRACE_OUTPUT=""
+HECATRACE_LOGS="/tmp/hecatrace_logs"
+
+ENV_FILE=".hecatrace.env"
+GLOBAL_ENV="${HOME}/.config/hecatrace/config"
+
+# Loading workspace config: local > global
+if [[ -f "$ENV_FILE" ]]; then
+    # shellcheck disable=SC1090
+    source "$ENV_FILE"
+elif [[ -f "$GLOBAL_ENV" ]]; then
+    # shellcheck disable=SC1090
+    source "$GLOBAL_ENV"
+fi
+
+# ---------------------------------------------------------------------------
+# Display
+# ---------------------------------------------------------------------------
+_green()  { printf '\033[0;32m%s\033[0m' "$*"; }
+_yellow() { printf '\033[0;33m%s\033[0m' "$*"; }
+_red()    { printf '\033[0;31m%s\033[0m' "$*"; }
+_bold()   { printf '\033[1m%s\033[0m' "$*"; }
+_cyan()   { printf '\033[0;36m%s\033[0m' "$*"; }
+
+_info()    { printf '%s %s\n'   "$(_green  '[hecatrace]')" "$*"; }
+_warn()    { printf '%s %s\n'   "$(_yellow '[hecatrace]')" "$*" >&2; }
+_error()   { printf '%s %s\n'   "$(_red    '[hecatrace]')" "$*" >&2; }
+_die()     { _error "$*"; exit 1; }
+_section() { printf '\n%s\n'    "$(_bold "── $* ──")"; }
+
+# ---------------------------------------------------------------------------
+# Preliminary checks
+# ---------------------------------------------------------------------------
+_check_docker() {
+    command -v docker &>/dev/null \
+        || _die "Docker not found. Install Docker and check the PATH."
+    docker info &>/dev/null 2>&1 \
+        || _die "Docker daemon unreachable. Check permissions (docker group?)."
+}
+
+_check_image() {
+    docker image inspect "$HECATRACE_IMAGE" &>/dev/null \
+        || _die "Image '$HECATRACE_IMAGE' missing. Run first: hecatrace build"
+}
+
+_require_workspace() {
+    [[ -n "${HECATRACE_EVIDENCE:-}" ]] \
+        || _die "HECATRACE_EVIDENCE not set. Run: hecatrace init --evidence PATH --output PATH"
+    [[ -n "${HECATRACE_OUTPUT:-}" ]] \
+        || _die "HECATRACE_OUTPUT not set. Run: hecatrace init --evidence PATH --output PATH"
+}
+
+# ---------------------------------------------------------------------------
+# Building Docker volume arguments (handles spaces in paths)
+# ---------------------------------------------------------------------------
+DOCKER_VOLUMES=()
+
+_setup_volumes() {
+    _require_workspace
+    mkdir -p "$HECATRACE_OUTPUT" "$HECATRACE_LOGS"
+    DOCKER_VOLUMES=(
+        "-v" "${HECATRACE_EVIDENCE}:/evidences:ro"
+        "-v" "${HECATRACE_OUTPUT}:/output"
+        "-v" "${HECATRACE_LOGS}:/logs"
+    )
+}
+
+# ---------------------------------------------------------------------------
+# Command: build
+# ---------------------------------------------------------------------------
+cmd_build() {
+    local tag="${1:-$HECATRACE_IMAGE}"
+    _info "Building image '$tag' from $SCRIPT_DIR"
+    _warn "This operation can take 20-40 minutes (downloading tools)."
+    printf '\n'
+    docker build --progress=plain -t "$tag" "$SCRIPT_DIR"
+    printf '\n'
+    _info "Image '$tag' built successfully."
+    local size
+    size=$(docker image inspect "$tag" --format '{{.Size}}' \
+           | awk '{printf "%.1f GB", $1/1073741824}')
+    _info "Size: $size"
+}
+
+# ---------------------------------------------------------------------------
+# Command: init
+# ---------------------------------------------------------------------------
+cmd_init() {
+    local evidence="" output="" logs="" image="$HECATRACE_IMAGE"
+    local logs_given=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --evidence) evidence="$2"; shift 2 ;;
+            --output)   output="$2";   shift 2 ;;
+            --logs)     logs="$2"; logs_given=true; shift 2 ;;
+            --image)    image="$2";    shift 2 ;;
+            *) _die "Unknown argument: '$1'" ;;
+        esac
+    done
+
+    # Interactive mode if arguments are missing
+    if [[ -z "$evidence" ]]; then
+        printf 'Evidence root [/evidences]: '
+        read -r evidence
+        evidence="${evidence:-/evidences}"
+    fi
+    if [[ -z "$output" ]]; then
+        printf 'Output root   [/output]: '
+        read -r output
+        output="${output:-/output}"
+    fi
+    if ! $logs_given; then
+        printf 'Logs          [%s]: ' "$HECATRACE_LOGS"
+        read -r logs
+        logs="${logs:-$HECATRACE_LOGS}"
+    fi
+
+    [[ -d "$evidence" ]] || _warn "Evidence directory '$evidence' does not exist on this host."
+
+    cat > "$ENV_FILE" <<EOF
+# Hecatrace — Workspace configuration
+# Generated on $(date '+%Y-%m-%d %H:%M:%S')
+
+HECATRACE_IMAGE=${image}
+HECATRACE_EVIDENCE=${evidence}
+HECATRACE_OUTPUT=${output}
+HECATRACE_LOGS=${logs}
+EOF
+
+    _info "Workspace configured ($ENV_FILE)"
+    _section "Configuration"
+    printf '  Image    : %s\n' "$image"
+    printf '  Evidence : %s\n' "$evidence"
+    printf '  Output   : %s\n' "$output"
+    printf '  Logs     : %s\n' "$logs"
+    _section "Next steps"
+    printf '  %s   → enter the environment (equivalent to venv activate)\n' \
+        "$(_bold 'hecatrace shell')"
+    printf '  %s     → run the full pipeline\n' \
+        "$(_bold 'hecatrace run -v -e')"
+    printf '\n'
+}
+
+# ---------------------------------------------------------------------------
+# Command: shell
+# ---------------------------------------------------------------------------
+cmd_shell() {
+    _check_image
+    _setup_volumes
+
+    _info "Opening the Hecatrace shell ..."
+    printf '  Evidence : %s → %s (read-only)\n' \
+        "$(_cyan "$HECATRACE_EVIDENCE")" "$(_bold '/evidences')"
+    printf '  Output   : %s → %s\n' \
+        "$(_cyan "$HECATRACE_OUTPUT")" "$(_bold '/output')"
+    printf '  Tools    : volatility3, log2timeline, hayabusa, chainsaw, yara, ...\n'
+    printf '  Exit     : exit or Ctrl+D\n\n'
+
+    docker run --rm -it \
+        "${DOCKER_VOLUMES[@]}" \
+        --hostname hecatrace \
+        "$HECATRACE_IMAGE" \
+        shell
+}
+
+# ---------------------------------------------------------------------------
+# Command: run (process_evidence.py pipeline)
+# ---------------------------------------------------------------------------
+cmd_run() {
+    _check_image
+    _setup_volumes
+
+    _info "Starting pipeline: process_evidence.py $*"
+    docker run --rm \
+        "${DOCKER_VOLUMES[@]}" \
+        "$HECATRACE_IMAGE" \
+        "$@"
+}
+
+# ---------------------------------------------------------------------------
+# Command: exec (standalone tool)
+# ---------------------------------------------------------------------------
+cmd_exec() {
+    [[ $# -gt 0 ]] || _die "Usage: hecatrace exec <command> [args...]"
+    _check_image
+    _setup_volumes
+
+    _info "Running: $*"
+    docker run --rm -it \
+        "${DOCKER_VOLUMES[@]}" \
+        "$HECATRACE_IMAGE" \
+        exec "$@"
+}
+
+# ---------------------------------------------------------------------------
+# Command: status
+# ---------------------------------------------------------------------------
+cmd_status() {
+    _section "Docker image"
+    if docker image inspect "$HECATRACE_IMAGE" &>/dev/null; then
+        local size created
+        size=$(docker image inspect "$HECATRACE_IMAGE" --format '{{.Size}}' \
+               | awk '{printf "%.1f GB", $1/1073741824}')
+        created=$(docker image inspect "$HECATRACE_IMAGE" \
+                  --format '{{.Metadata.LastTagTime}}' 2>/dev/null | cut -d'T' -f1)
+        printf '  %-20s %s  size=%s  built=%s\n' \
+            "$HECATRACE_IMAGE" "$(_green '✓')" "$size" "$created"
+    else
+        printf '  %-20s %s\n' \
+            "$HECATRACE_IMAGE" "$(_red '✗ missing — hecatrace build')"
+    fi
+
+    _section "Workspace"
+    if [[ -f "$ENV_FILE" ]]; then
+        printf '  File     : %s\n' "$(pwd)/$ENV_FILE"
+        printf '\n'
+        printf '  Evidence : %s' "${HECATRACE_EVIDENCE:-—}"
+        if [[ -n "${HECATRACE_EVIDENCE:-}" ]]; then
+            [[ -d "${HECATRACE_EVIDENCE}" ]] \
+                && printf '  %s' "$(_green '✓')" \
+                || printf '  %s' "$(_red '✗ directory missing')"
+        fi
+        printf '\n'
+        printf '  Output   : %s\n' "${HECATRACE_OUTPUT:-—}"
+        printf '  Logs     : %s\n' "${HECATRACE_LOGS:-—}"
+    else
+        printf '  %s\n' "$(_yellow "No $ENV_FILE in the current directory.")"
+        printf '  Run: %s\n' "$(_bold 'hecatrace init --evidence PATH --output PATH')"
+    fi
+    printf '\n'
+}
+
+# ---------------------------------------------------------------------------
+# Command: update (git pull + rebuild)
+# ---------------------------------------------------------------------------
+cmd_update() {
+    _info "Updating the project from $SCRIPT_DIR ..."
+    if git -C "$SCRIPT_DIR" pull --ff-only; then
+        _info "Rebuilding the image ..."
+        cmd_build
+    else
+        _die "git pull failed. Check the repository."
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Command: help
+# ---------------------------------------------------------------------------
+cmd_help() {
+    cat <<EOF
+
+$(_bold 'hecatrace') — DFIR Forensics Platform
+
+$(_bold 'USAGE')
+  hecatrace <command> [options]
+
+$(_bold 'COMMANDS')
+
+  $(_bold 'build')   [IMAGE_TAG]
+      Builds the Docker image from the project directory.
+      Duration: 20-40 min (first build). Subsequent builds use the cache.
+
+  $(_bold 'init')    --evidence PATH --output PATH [--logs PATH] [--image TAG]
+      Configures the workspace for the current case (.hecatrace.env).
+      Interactive mode if arguments are omitted.
+
+  $(_bold 'shell')
+      Opens an interactive bash shell in the container with the volumes mounted.
+      Equivalent to "source venv/bin/activate" for forensics.
+      All tools are available: vol3, log2timeline, hayabusa, yara...
+
+  $(_bold 'run')     [args...]
+      Runs process_evidence.py with the given arguments.
+      Volumes are mounted automatically from .hecatrace.env.
+
+  $(_bold 'exec')    <command> [args...]
+      Runs a standalone tool in the container.
+
+  $(_bold 'status')
+      Shows the Docker image status and workspace configuration.
+
+  $(_bold 'update')
+      git pull + rebuild the image (tool updates).
+
+$(_bold 'EXAMPLES')
+
+  # First-time installation
+  hecatrace build
+
+  # New case
+  cd /srv/investigations
+  hecatrace init --evidence /srv/evidences/case_2026 --output /srv/results/case_2026
+
+  # Interactive work (full access to all tools)
+  hecatrace shell
+  # Inside the container:
+  # $ process_evidence.py -v -e
+  # $ volatility3 -f /evidences/mem.dmp windows.pslist
+  # $ yara /opt/hecatrace/resources/rules.yar /evidences/
+  # $ log2timeline.py --storage-file /output/plaso/case.plaso /evidences/mnt/
+
+  # Full pipeline in one command (without entering the shell)
+  hecatrace run -v --output /output/case_2026 -e
+
+  # Standalone tools from outside
+  hecatrace exec volatility3 -f /evidences/mem.dmp windows.pslist
+  hecatrace exec hayabusa csv-timeline --directory /evidences/evtx -o /output/timeline.csv
+  hecatrace exec chainsaw hunt /evidences/evtx --rule /opt/hecatrace/tools/chainsaw/rules
+
+$(_bold 'CONFIGURATION')
+  Current workspace : .hecatrace.env  (created by 'hecatrace init')
+  Global config     : $GLOBAL_ENV
+
+EOF
+}
+
+# ---------------------------------------------------------------------------
+# Main entry point
+# ---------------------------------------------------------------------------
+_check_docker
+
+CMD="${1:-help}"
+shift || true
+
+case "$CMD" in
+    build)  cmd_build  "$@" ;;
+    init)   cmd_init   "$@" ;;
+    shell)  cmd_shell  "$@" ;;
+    run)    cmd_run    "$@" ;;
+    exec)   cmd_exec   "$@" ;;
+    status) cmd_status "$@" ;;
+    update) cmd_update "$@" ;;
+    help|--help|-h) cmd_help ;;
+    *)
+        _error "Unknown command: '$CMD'"
+        _info  "Commands: build | init | shell | run | exec | status | update | help"
+        exit 1
+        ;;
+esac

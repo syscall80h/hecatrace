@@ -1,0 +1,25 @@
+# Generic keyword list searched against MFT CSVs (filesystem artefacts).
+# One keyword per line. Empty lines and lines starting with '#' are ignored
+# as-is by the orchestrator (grep -F skips them naturally if the file does
+# not contain them).
+# Populate with your own team's shortlist (malware names, tool names, known
+# bad filenames). A few common triage hints are given below as a starter.
+mimikatz
+nanodump
+rubeus
+psexec
+cobaltstrike
+sharphound
+bloodhound
+procdump
+lsass.dmp
+ntds.dit
+shadowcopy
+rclone
+megasync
+anydesk
+rustdesk
+teamviewer
+nssm.exe
+powercat
+certutil -urlcache

@@ -1,0 +1,60 @@
+# =============================================================================
+# Hecatrace — Main configuration
+# =============================================================================
+# All paths are absolute and correspond to the container's filesystem layout.
+# No longer contains tool paths (moved to tools.yaml).
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Docker directories (mount points)
+# These values can be overridden via environment variables:
+#   HECATRACE_EVIDENCE_ROOT, HECATRACE_OUTPUT_ROOT, HECATRACE_LOGS_ROOT
+# ---------------------------------------------------------------------------
+evidence_root: /evidences
+output_root:   /output
+logs_root:     /logs
+
+# Internal project resources (inside the image)
+resources_dir: /opt/hecatrace/resources
+
+# ---------------------------------------------------------------------------
+# Parallelism
+# Maximum number of simultaneous subprocess tasks.
+# Adjust based on the analysis server's resources.
+# Recommended: nb_cores × 1.5 for I/O-bound tasks.
+# ---------------------------------------------------------------------------
+max_parallel_tasks: 6
+
+# ---------------------------------------------------------------------------
+# Plaso (log2timeline + psort)
+# ---------------------------------------------------------------------------
+plaso:
+  # Maximum memory per worker (in bytes). 4 GiB by default.
+  worker_memory_limit: 4294967296
+  # Parsers to use. win7_slow = maximum Windows coverage.
+  parsers: win7_slow
+  # Plaso output filename (relative to the output's plaso/ directory)
+  storage_filename: evidence.plaso
+  # psort filename (relative to the output's plaso/ directory)
+  psort_filename:   output.psort
+
+# ---------------------------------------------------------------------------
+# Keyword lists for the easy-win search
+# Paths relative to resources_dir, or absolute.
+# ---------------------------------------------------------------------------
+keywords:
+  generic_file:  keywords/generic_file.txt
+  generic_image: keywords/generic_image.txt
+  # Custom lists per case (searched before the generic lists)
+  custom_file:   []
+  # - /output/case_xxx/ioc_file.txt
+  custom_image:  []
+  # - /output/case_xxx/ioc_image.txt
+
+# ---------------------------------------------------------------------------
+# Optional internal tools (e.g. TCS-CERT parsers)
+# Leave empty ("") to skip.
+# ---------------------------------------------------------------------------
+internal_tools:
+  rdp_session_parser:      ""
+  security_session_parser: ""

@@ -1,0 +1,345 @@
+# =============================================================================
+# Hecatrace — EVTX routing table
+# =============================================================================
+# Describes how Windows events (EVTX) are split into CSV files.
+# This table replaces the EVTX_ROUTING dictionary hard-coded in the old
+# process_evidence.py.
+#
+# How it works:
+#   For each line of the NDJSON dump produced by Chainsaw:
+#     1. The EventID is extracted.
+#     2. Each route matching this EventID is evaluated.
+#     3. If channel (substring) matches the event's channel + provider,
+#        the `fields` are extracted and written to `output_file`.
+#     4. An empty channel ("") means "all channels".
+#
+# Route format:
+#   - event_id:   <int>     Windows EventID
+#     channel:    <string>  Substring to find in Channel or Provider
+#                           (empty = no filter)
+#     output_file:<string>  Output CSV filename
+#     fields:     <list>    Names of the EventData fields to extract
+#                           (empty list = datetime/provider/eid only)
+#
+# To add a new EventID: add an entry here.
+# No Python code changes required.
+# =============================================================================
+
+routes:
+
+  # ---------------------------------------------------------------------------
+  # Authentication and logon
+  # ---------------------------------------------------------------------------
+  - event_id:   4624
+    channel:    "Security"
+    output_file: "4624_logon.csv"
+    fields:
+      - LogonType
+      - IpAddress
+      - WorkstationName
+      - IpPort
+      - SubjectUserSid
+      - SubjectUserName
+      - SubjectDomainName
+      - TargetUserSid
+      - TargetUserName
+      - TargetDomainName
+      - AuthenticationPackageName
+
+  - event_id:   4625
+    channel:    "Security"
+    output_file: "4625_logon_failed.csv"
+    fields:
+      - LogonType
+      - IpAddress
+      - WorkstationName
+      - IpPort
+      - SubjectUserSid
+      - SubjectUserName
+      - SubjectDomainName
+      - TargetUserSid
+      - TargetUserName
+      - TargetDomainName
+      - AuthenticationPackageName
+      - Status
+      - SubStatus
+
+  - event_id:   4634
+    channel:    "Security"
+    output_file: "4634_logoff.csv"
+    fields:
+      - TargetUserSid
+      - TargetUserName
+      - TargetDomainName
+      - LogonType
+
+  - event_id:   4648
+    channel:    "Security"
+    output_file: "4648_explicit_logon.csv"
+    fields:
+      - SubjectUserName
+      - SubjectDomainName
+      - TargetUserName
+      - TargetDomainName
+      - TargetServerName
+      - IpAddress
+      - ProcessName
+
+  # ---------------------------------------------------------------------------
+  # RDP (inbound and outbound connections)
+  # ---------------------------------------------------------------------------
+  - event_id:   1149
+    channel:    "TerminalServices-RemoteConnectionManager"
+    output_file: "1149_rdp_inbound.csv"
+    fields:
+      - Param1
+      - Param2
+      - Param3
+
+  - event_id:   21
+    channel:    "TerminalServices-LocalSessionManager"
+    output_file: "21_rdp_session_logon.csv"
+    fields:
+      - User
+      - Address
+
+  - event_id:   22
+    channel:    "TerminalServices-LocalSessionManager"
+    output_file: "22_rdp_shell_started.csv"
+    fields:
+      - User
+      - Address
+
+  - event_id:   25
+    channel:    "TerminalServices-LocalSessionManager"
+    output_file: "25_rdp_session_reconnect.csv"
+    fields:
+      - User
+      - Address
+
+  - event_id:   24
+    channel:    "TerminalServices-LocalSessionManager"
+    output_file: "24_rdp_session_disconnect.csv"
+    fields:
+      - User
+      - Address
+
+  # Outbound RDP (client)
+  - event_id:   1102
+    channel:    "TerminalServices-ClientActiveXCore"
+    output_file: "1102_rdp_outbound.csv"
+    fields:
+      - Name
+      - Value
+
+  - event_id:   1024
+    channel:    "TerminalServices-ClientActiveXCore"
+    output_file: "1024_rdp_outbound_connect.csv"
+    fields:
+      - Name
+      - Value
+
+  # ---------------------------------------------------------------------------
+  # Process execution
+  # ---------------------------------------------------------------------------
+  - event_id:   4688
+    channel:    "Security"
+    output_file: "4688_process_creation.csv"
+    fields:
+      - SubjectUserName
+      - TargetUserName
+      - NewProcessName
+      - CommandLine
+
+  - event_id:   9707
+    channel:    ""
+    output_file: "9707_run.csv"
+    fields:
+      - Command
+
+  # ---------------------------------------------------------------------------
+  # Windows services
+  # ---------------------------------------------------------------------------
+  - event_id:   7045
+    channel:    "System"
+    output_file: "7045_new_service.csv"
+    fields:
+      - ServiceName
+      - ImagePath
+      - StartType
+
+  - event_id:   7036
+    channel:    "System"
+    output_file: "7036_service_state.csv"
+    fields:
+      - param1
+      - param2
+
+  # ---------------------------------------------------------------------------
+  # Scheduled tasks
+  # ---------------------------------------------------------------------------
+  - event_id:   106
+    channel:    "TaskScheduler"
+    output_file: "106_task_registered.csv"
+    fields:
+      - TaskName
+      - UserContext
+
+  - event_id:   100
+    channel:    "TaskScheduler"
+    output_file: "100_task_started.csv"
+    fields:
+      - TaskName
+
+  - event_id:   200
+    channel:    "TaskScheduler"
+    output_file: "200_task_action.csv"
+    fields:
+      - TaskName
+      - ActionName
+
+  - event_id:   201
+    channel:    "TaskScheduler"
+    output_file: "201_task_completed.csv"
+    fields:
+      - TaskName
+      - ActionName
+      - ResultCode
+
+  - event_id:   141
+    channel:    "TaskScheduler"
+    output_file: "141_task_deleted.csv"
+    fields:
+      - TaskName
+      - UserContext
+
+  # ---------------------------------------------------------------------------
+  # PowerShell
+  # ---------------------------------------------------------------------------
+  - event_id:   4104
+    channel:    ""
+    output_file: "4104_powershell_scriptblock.csv"
+    fields:
+      - ScriptBlockText
+
+  - event_id:   4103
+    channel:    ""
+    output_file: "4103_powershell_pipeline.csv"
+    fields: []
+
+  - event_id:   4100
+    channel:    ""
+    output_file: "4100_powershell_error.csv"
+    fields: []
+
+  - event_id:   600
+    channel:    "PowerShell"
+    output_file: "600_powershell_provider.csv"
+    fields: []
+
+  # ---------------------------------------------------------------------------
+  # User account management
+  # ---------------------------------------------------------------------------
+  - event_id:   4720
+    channel:    "Security"
+    output_file: "4720_user_created.csv"
+    fields:
+      - TargetUserName
+      - TargetDomainName
+      - TargetSid
+      - SubjectUserName
+      - SubjectDomainName
+
+  - event_id:   4726
+    channel:    "Security"
+    output_file: "4726_user_deleted.csv"
+    fields:
+      - TargetUserName
+      - TargetDomainName
+      - TargetSid
+      - SubjectUserName
+      - SubjectDomainName
+
+  - event_id:   4732
+    channel:    "Security"
+    output_file: "4732_group_member_added.csv"
+    fields:
+      - MemberSid
+      - TargetUserName
+      - SubjectUserName
+      - SubjectDomainName
+
+  - event_id:   4728
+    channel:    "Security"
+    output_file: "4728_global_group_member_added.csv"
+    fields:
+      - MemberSid
+      - TargetUserName
+      - SubjectUserName
+      - SubjectDomainName
+
+  # ---------------------------------------------------------------------------
+  # Windows Defender
+  # ---------------------------------------------------------------------------
+  - event_id:   1116
+    channel:    "Windows Defender"
+    output_file: "1116_defender_detection.csv"
+    fields:
+      - "Threat Name"
+      - "Severity Name"
+      - "Category Name"
+      - Path
+      - Action
+
+  - event_id:   1117
+    channel:    "Windows Defender"
+    output_file: "1117_defender_action.csv"
+    fields:
+      - "Threat Name"
+      - "Action Name"
+      - Path
+
+  # ---------------------------------------------------------------------------
+  # Log clearing
+  # ---------------------------------------------------------------------------
+  - event_id:   1102
+    channel:    "Microsoft-Windows-Eventlog"
+    output_file: "1102_log_cleared.csv"
+    fields:
+      - SubjectUserName
+      - SubjectDomainName
+
+  - event_id:   104
+    channel:    "System"
+    output_file: "104_log_cleared_system.csv"
+    fields:
+      - SubjectUserName
+      - SubjectDomainName
+
+  # ---------------------------------------------------------------------------
+  # Shutdown / restart
+  # ---------------------------------------------------------------------------
+  - event_id:   1074
+    channel:    ""
+    output_file: "1074_shutdown.csv"
+    fields:
+      - param3
+      - param7
+
+  - event_id:   6008
+    channel:    "System"
+    output_file: "6008_unexpected_shutdown.csv"
+    fields: []
+
+  # ---------------------------------------------------------------------------
+  # WinRM (lateral movement)
+  # ---------------------------------------------------------------------------
+  - event_id:   6
+    channel:    "WinRM"
+    output_file: "6_winrm_outbound.csv"
+    fields: []
+
+  - event_id:   91
+    channel:    "WinRM"
+    output_file: "91_winrm_inbound.csv"
+    fields: []
