@@ -39,7 +39,7 @@ Hecatrace is a self-contained forensics container that packages every open-sourc
 
 ```
 hecatrace/
-├── Dockerfile                  Multi-stage build (Ubuntu 22.04 LTS)
+├── Dockerfile                  Multi-stage build (Ubuntu 24.04 LTS)
 ├── hecatrace                   Host-side CLI wrapper  ← main entry point
 ├── docker-compose.yml          Advanced interface (resource limits, CI/CD)
 ├── entrypoint.sh               Container entrypoint (shell / exec / pipeline)
@@ -80,7 +80,7 @@ hecatrace/
 | Stage | Role |
 |---|---|
 | `builder` | Downloads GitHub releases (Hayabusa, Chainsaw, capa, FLOSS) and git-clones Python tools. No binaries leak into the final image. |
-| `final` | Clean Ubuntu 22.04 runtime. Installs apt packages, Python packages, copies tools from builder. |
+| `final` | Clean Ubuntu 24.04 runtime. Installs apt packages, Python packages, copies tools from builder. |
 
 ---
 
