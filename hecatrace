@@ -190,6 +190,7 @@ cmd_shell() {
 
     docker run --rm -it \
         "${DOCKER_VOLUMES[@]}" \
+        --device /dev/fuse --cap-add SYS_ADMIN \
         --hostname hecatrace \
         "$HECATRACE_IMAGE" \
         shell
@@ -220,6 +221,7 @@ cmd_exec() {
     _info "Running: $*"
     docker run --rm -it \
         "${DOCKER_VOLUMES[@]}" \
+        --device /dev/fuse --cap-add SYS_ADMIN \
         "$HECATRACE_IMAGE" \
         exec "$@"
 }

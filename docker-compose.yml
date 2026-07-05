@@ -51,6 +51,17 @@ services:
     init: true
 
     # ---------------------------------------------------------------------------
+    # FUSE mounting (ewfmount for E01/EWF, etc.) — required for the shell/exec
+    # workflow of mounting an image so registry/EVTX/MFT/UAL/strings collectors
+    # can run against it. The 'hecatrace shell'/'hecatrace exec' wrapper
+    # commands already pass these two flags automatically.
+    # ---------------------------------------------------------------------------
+    devices:
+      - /dev/fuse
+    cap_add:
+      - SYS_ADMIN
+
+    # ---------------------------------------------------------------------------
     # Resource limits — uncomment and adapt to the server
     # ---------------------------------------------------------------------------
     # deploy:

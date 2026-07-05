@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Hecatrace — DFIR Forensics Orchestrator
+Hecatrace - DFIR Forensics Orchestrator
 ========================================
 Entry point for the Windows forensic pipeline.
 The business logic lives entirely in modules/.
@@ -94,10 +94,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="process_evidence.py",
         description=(
-            "Hecatrace — DFIR forensics orchestrator\n\n"
+            "Hecatrace - DFIR forensics orchestrator\n\n"
             "If -f/-v/-p are all omitted, the source type is auto-detected from "
             "--evidence: Velociraptor or FastIR layout, or a disk image "
-            "(.dd/.raw/.img/.E01/.Ex01/.vhd/.vhdx/.vmdk/.aff) — in which case the "
+            "(.dd/.raw/.img/.E01/.Ex01/.vhd/.vhdx/.vmdk/.aff) - in which case the "
             "image path and NTFS partition offset are auto-detected too."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -121,15 +121,15 @@ examples:
         """,
     )
 
-    # --- Source (mutually exclusive, optional — auto-detected from --evidence if omitted) ---
+    # --- Source (mutually exclusive, optional - auto-detected from --evidence if omitted) ---
     src = parser.add_mutually_exclusive_group(required=False)
     src.add_argument(
         "-f", "--fastir", action="store_true",
-        help="FastIR source — expects ./C/ under --evidence.",
+        help="FastIR source - expects ./C/ under --evidence.",
     )
     src.add_argument(
         "-v", "--velociraptor", action="store_true",
-        help="Velociraptor source — expects ./uploads/auto/C%%3A/ and ./uploads/ntfs/.",
+        help="Velociraptor source - expects ./uploads/auto/C%%3A/ and ./uploads/ntfs/.",
     )
     src.add_argument(
         "-p", "--path", type=str, metavar="PATH",
@@ -307,7 +307,7 @@ def main(argv: Optional[list[str]] = None) -> int:
 
 def _install_signal_handlers() -> None:
     def _handle(signum, _frame):
-        log.warning("Signal %s received — clean shutdown.", signum)
+        log.warning("Signal %s received - clean shutdown.", signum)
         sys.exit(130)
     for sig in (signal.SIGINT, signal.SIGTERM):
         try:
