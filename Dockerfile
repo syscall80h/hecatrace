@@ -5,13 +5,13 @@
 #   builder  → network downloads (GitHub releases + git clones)
 #   final    → clean runtime image, without build tools
 #
-# Base: ubuntu:22.04 LTS (Python 3.10, good forensics APT coverage)
+# Base: ubuntu:24.04 LTS (Python 3.12, good forensics APT coverage)
 # =============================================================================
 
 # =============================================================================
 # Stage 1 - builder
 # =============================================================================
-FROM ubuntu:22.04 AS builder
+FROM ubuntu:24.04 AS builder
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -108,6 +108,25 @@ print(hits[0])") && \
     find /tools/floss -maxdepth 1 -name "floss-*" -type f -exec mv {} /tools/floss/floss \; 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
+# Eric Zimmerman's tools (EZTools) - .NET 9 cross-platform CLI builds
+# GUI tools (RegistryExplorer, TimelineExplorer, ...) and Windows-only tools
+# (VSCMount) are intentionally excluded - they don't apply to a headless
+# Linux container.
+# ---------------------------------------------------------------------------
+RUN set -e; \
+    mkdir -p /tools/eztools; \
+    for tool in \
+        AmcacheParser AppCompatCacheParser bstrings EvtxECmd iisGeolocate \
+        JLECmd LECmd MFTECmd PECmd RBCmd RecentFileCacheParser RECmd rla \
+        SBECmd SQLECmd SrumECmd SumECmd WxTCmd; \
+    do \
+        mkdir -p "/tools/eztools/$tool" && \
+        wget -q -U "Mozilla/5.0" -O "/tmp/$tool.zip" "https://download.ericzimmermanstools.com/net9/$tool.zip" && \
+        unzip -q -o "/tmp/$tool.zip" -d "/tools/eztools/$tool" && \
+        rm "/tmp/$tool.zip"; \
+    done
+
+# ---------------------------------------------------------------------------
 # Didier Stevens Suite (pdfid, pdf-parser, oledump, etc.)
 # ---------------------------------------------------------------------------
 RUN mkdir -p /tools/didier-stevens && \
@@ -134,7 +153,7 @@ RUN git clone --depth 1 https://github.com/SigmaHQ/sigma.git /tools/sigma
 # =============================================================================
 # Stage 2 - final (image runtime)
 # =============================================================================
-FROM ubuntu:22.04 AS final
+FROM ubuntu:24.04 AS final
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -215,6 +234,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ---------------------------------------------------------------------------
+# .NET 9 runtime (required by Eric Zimmerman's tools, net9 cross-platform
+# builds). Neither Ubuntu's own repos (dotnet-runtime-8.0/10.0 only) nor
+# Microsoft's apt feed carry 9.0 for this release, so the official
+# dotnet-install.sh script is used instead - it fetches the exact channel
+# directly from Microsoft's build servers regardless of distro packaging.
+# ---------------------------------------------------------------------------
+RUN wget -q https://dot.net/v1/dotnet-install.sh -O /tmp/dotnet-install.sh && \
+    chmod +x /tmp/dotnet-install.sh && \
+    /tmp/dotnet-install.sh --channel 9.0 --runtime dotnet --install-dir /usr/share/dotnet && \
+    rm /tmp/dotnet-install.sh && \
+    ln -s /usr/share/dotnet/dotnet /usr/local/bin/dotnet
+
+# ---------------------------------------------------------------------------
 # bulk_extractor (removed from the Ubuntu/Debian archives - built from source)
 # ---------------------------------------------------------------------------
 RUN git clone --depth 1 --recursive https://github.com/simsong/bulk_extractor.git /tmp/bulk_extractor && \
@@ -234,10 +266,17 @@ RUN git clone --depth 1 --recursive https://github.com/simsong/bulk_extractor.gi
 RUN echo "setuptools<82" > /tmp/pip-constraints.txt
 ENV PIP_CONSTRAINT=/tmp/pip-constraints.txt
 
+# Ubuntu 24.04's Python is "externally managed" (PEP 668) and refuses plain
+# pip installs. This is a purpose-built, single-use container image, so
+# system-wide pip installs are intentional - not a conflict to guard against.
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
+
 # ---------------------------------------------------------------------------
 # Python: plaso first (its dependency tree resolution is heavy)
 # ---------------------------------------------------------------------------
-RUN pip3 install --no-cache-dir --upgrade pip setuptools wheel
+# --ignore-installed: apt's python3-pip has no RECORD file, so pip can't
+# uninstall itself to upgrade in place (Debian/Ubuntu packaging quirk).
+RUN pip3 install --no-cache-dir --ignore-installed --upgrade pip setuptools wheel
 RUN pip3 install --no-cache-dir plaso
 
 # ---------------------------------------------------------------------------
@@ -250,6 +289,22 @@ RUN pip3 install --no-cache-dir -r /tmp/requirements.txt
 # Copying tools downloaded from the builder stage
 # ---------------------------------------------------------------------------
 COPY --from=builder /tools /opt/hecatrace/tools
+
+# ---------------------------------------------------------------------------
+# EZTools wrappers - lets each tool be invoked by name (e.g. "MFTECmd ...")
+# instead of "dotnet /opt/hecatrace/tools/eztools/MFTECmd/MFTECmd.dll ...".
+# ---------------------------------------------------------------------------
+RUN set -e; \
+    for tool in \
+        AmcacheParser AppCompatCacheParser bstrings EvtxECmd iisGeolocate \
+        JLECmd LECmd MFTECmd PECmd RBCmd RecentFileCacheParser RECmd rla \
+        SBECmd SQLECmd SrumECmd SumECmd WxTCmd; \
+    do \
+        dll=$(find "/opt/hecatrace/tools/eztools/$tool" -iname "$tool.dll" | head -1) && \
+        [ -n "$dll" ] || { echo "No .dll found for $tool" >&2; exit 1; } && \
+        printf '#!/bin/sh\nexec dotnet "%s" "$@"\n' "$dll" > "/usr/local/bin/$tool" && \
+        chmod +x "/usr/local/bin/$tool"; \
+    done
 
 # ---------------------------------------------------------------------------
 # pip install of cloned Python tools (lenient error handling)

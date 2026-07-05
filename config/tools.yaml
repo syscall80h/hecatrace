@@ -196,6 +196,120 @@ tools:
     description: "oledump - OLE/Office file analysis (Didier Stevens)"
 
   # ---------------------------------------------------------------------------
+  # Eric Zimmerman's tools (EZTools, .NET 9 cross-platform CLI builds).
+  # Each tool has a /usr/local/bin wrapper generated in the Dockerfile, so it
+  # runs directly by name (e.g. "MFTECmd ...") without invoking dotnet/the
+  # .dll path manually. Not wired into any collector - shell/manual use.
+  # ---------------------------------------------------------------------------
+  amcache_parser:
+    command:     AmcacheParser
+    type:        binary
+    optional:    true
+    description: "AmcacheParser - Amcache.hve parser (EZTools)"
+
+  appcompatcache_parser:
+    command:     AppCompatCacheParser
+    type:        binary
+    optional:    true
+    description: "AppCompatCacheParser - ShimCache parser (EZTools)"
+
+  bstrings:
+    command:     bstrings
+    type:        binary
+    optional:    true
+    description: "bstrings - string search with built-in regex patterns (EZTools)"
+
+  evtxecmd:
+    command:     EvtxECmd
+    type:        binary
+    optional:    true
+    description: "EvtxECmd - EVTX parser with custom maps (EZTools)"
+
+  iis_geolocate:
+    command:     iisGeolocate
+    type:        binary
+    optional:    true
+    description: "iisGeolocate - geolocates IPs found in IIS logs (EZTools)"
+
+  jlecmd:
+    command:     JLECmd
+    type:        binary
+    optional:    true
+    description: "JLECmd - Jump List parser (EZTools)"
+
+  lecmd:
+    command:     LECmd
+    type:        binary
+    optional:    true
+    description: "LECmd - .lnk file parser (EZTools)"
+
+  mftecmd:
+    command:     MFTECmd
+    type:        binary
+    optional:    true
+    description: "MFTECmd - $MFT/$Boot/$J/$SDS/$I30 parser (EZTools)"
+
+  pecmd:
+    command:     PECmd
+    type:        binary
+    optional:    true
+    description: "PECmd - Prefetch parser (EZTools)"
+
+  rbcmd:
+    command:     RBCmd
+    type:        binary
+    optional:    true
+    description: "RBCmd - Recycle Bin artifact parser (EZTools)"
+
+  recentfilecache_parser:
+    command:     RecentFileCacheParser
+    type:        binary
+    optional:    true
+    description: "RecentFileCacheParser - RecentFileCache parser (EZTools)"
+
+  recmd:
+    command:     RECmd
+    type:        binary
+    optional:    true
+    description: "RECmd - command-line registry tool with plugins (EZTools)"
+
+  rla:
+    command:     rla
+    type:        binary
+    optional:    true
+    description: "RLA - replays transaction logs to repair dirty registry hives (EZTools)"
+
+  sbecmd:
+    command:     SBECmd
+    type:        binary
+    optional:    true
+    description: "SBECmd - shellbags parser, CLI edition (EZTools)"
+
+  sqlecmd:
+    command:     SQLECmd
+    type:        binary
+    optional:    true
+    description: "SQLECmd - SQLite file finder/processor with maps (EZTools)"
+
+  srumecmd:
+    command:     SrumECmd
+    type:        binary
+    optional:    true
+    description: "SrumECmd - SRUDB.dat parser (EZTools)"
+
+  sumecmd:
+    command:     SumECmd
+    type:        binary
+    optional:    true
+    description: "SumECmd - User Access Log (UAL) parser (EZTools)"
+
+  wxtcmd:
+    command:     WxTCmd
+    type:        binary
+    optional:    true
+    description: "WxTCmd - Windows 10 Timeline database parser (EZTools)"
+
+  # ---------------------------------------------------------------------------
   # System tools (installed via apt - always on PATH)
   # ---------------------------------------------------------------------------
   strings:
